@@ -1,4 +1,4 @@
-const BUCKET_NAME = 'Indoxvx-cdn';
+const BUCKET_NAME = 'indoxvx-cdn';
 const ENDPOINT    = 's3.us-west-004.backblazeb2.com';
 const REGION      = 'us-west-004';
 const SERVICE     = 's3';
@@ -25,7 +25,6 @@ async function hmacSha256(key, message) {
   return crypto.subtle.sign('HMAC', cryptoKey, m);
 }
 
-// URI encode sesuai AWS spec
 function uriEncodePath(path) {
   return path.split('/').map(segment =>
     encodeURIComponent(segment).replace(/[!'()*]/g, c =>
@@ -35,7 +34,7 @@ function uriEncodePath(path) {
 }
 
 async function buildSignedRequest(method, filePath, keyId, secretKey, rangeHeader) {
-  const now = new Date();
+  const now       = new Date();
   const amzDate   = now.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 15) + 'Z';
   const dateStamp = amzDate.slice(0, 8);
 
