@@ -10,6 +10,8 @@ const ALLOWED_DOMAINS = [
   'www.indoxvx.cam',
   'xjilbab.cam',
   'www.xjilbab.cam',
+  'vidoway.click',
+  'www.vidoway.click',
 ];
 
 function hex(buffer) {
