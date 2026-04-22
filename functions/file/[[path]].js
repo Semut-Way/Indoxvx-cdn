@@ -10,85 +10,80 @@ function hex(buffer) {
 }
 
 async function sha256hex(message) {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    typeof message === 'string' ? new TextEncoder().encode(message) : message
-  );
-  return hex(buf);
+  const data = typeof message === 'string'
+    ? new TextEncoder().encode(message)
+    : message;
+  return hex(await crypto.subtle.digest('SHA-256', data));
 }
 
 async function hmacSha256(key, message) {
+  const k = typeof key === 'string' ? new TextEncoder().encode(key) : key;
+  const m = typeof message === 'string' ? new TextEncoder().encode(message) : message;
   const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    typeof key === 'string' ? new TextEncoder().encode(key) : key,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
+    'raw', k, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
   );
-  return crypto.subtle.sign(
-    'HMAC',
-    cryptoKey,
-    typeof message === 'string' ? new TextEncoder().encode(message) : message
-  );
+  return crypto.subtle.sign('HMAC', cryptoKey, m);
 }
 
-async function getSigningKey(secretKey, dateStamp, region, service) {
-  const kDate    = await hmacSha256('AWS4' + secretKey, dateStamp);
-  const kRegion  = await hmacSha256(kDate, region);
-  const kService = await hmacSha256(kRegion, service);
-  const kSigning = await hmacSha256(kService, 'aws4_request');
-  return kSigning;
+// URI encode sesuai AWS spec
+function uriEncodePath(path) {
+  return path.split('/').map(segment =>
+    encodeURIComponent(segment).replace(/[!'()*]/g, c =>
+      '%' + c.charCodeAt(0).toString(16).toUpperCase()
+    )
+  ).join('/');
 }
 
-async function signedFetch(filePath, keyId, secretKey, rangeHeader) {
+async function buildSignedRequest(method, filePath, keyId, secretKey, rangeHeader) {
   const now = new Date();
   const amzDate   = now.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 15) + 'Z';
   const dateStamp = amzDate.slice(0, 8);
 
-  const host       = `${BUCKET_NAME}.${ENDPOINT}`;
-  const objectKey  = filePath.split('/').map(encodeURIComponent).join('/');
-  const canonUri   = '/' + objectKey;
-  const canonQuery = '';
+  const host     = `${BUCKET_NAME}.${ENDPOINT}`;
+  const canonUri = '/' + uriEncodePath(filePath);
 
   const payloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
-  const headers = {
-    'host':                   host,
-    'x-amz-content-sha256':   payloadHash,
-    'x-amz-date':             amzDate,
+  const canonHeadersMap = {
+    'host':                 host,
+    'x-amz-content-sha256': payloadHash,
+    'x-amz-date':           amzDate,
   };
-  if (rangeHeader) headers['range'] = rangeHeader;
+  if (rangeHeader) canonHeadersMap['range'] = rangeHeader;
 
-  const sortedHeaderKeys = Object.keys(headers).sort();
-  const canonHeaders     = sortedHeaderKeys.map(k => `${k}:${headers[k]}\n`).join('');
-  const signedHeaders    = sortedHeaderKeys.join(';');
+  const sortedKeys    = Object.keys(canonHeadersMap).sort();
+  const canonHeaders  = sortedKeys.map(k => `${k}:${canonHeadersMap[k]}\n`).join('');
+  const signedHeaders = sortedKeys.join(';');
 
   const canonRequest = [
-    'GET',
+    method,
     canonUri,
-    canonQuery,
+    '',
     canonHeaders,
     signedHeaders,
     payloadHash,
   ].join('\n');
 
   const credentialScope = `${dateStamp}/${REGION}/${SERVICE}/aws4_request`;
-  const stringToSign    = [
+  const stringToSign = [
     'AWS4-HMAC-SHA256',
     amzDate,
     credentialScope,
     await sha256hex(canonRequest),
   ].join('\n');
 
-  const signingKey = await getSigningKey(secretKey, dateStamp, REGION, SERVICE);
-  const signature  = hex(await hmacSha256(signingKey, stringToSign));
+  const kDate    = await hmacSha256('AWS4' + secretKey, dateStamp);
+  const kRegion  = await hmacSha256(kDate, REGION);
+  const kService = await hmacSha256(kRegion, SERVICE);
+  const kSigning = await hmacSha256(kService, 'aws4_request');
+  const signature = hex(await hmacSha256(kSigning, stringToSign));
 
-  const authHeader =
+  const authorization =
     `AWS4-HMAC-SHA256 Credential=${keyId}/${credentialScope}, ` +
     `SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
   const fetchHeaders = {
-    'Authorization':          authHeader,
+    'Authorization':          authorization,
     'x-amz-date':             amzDate,
     'x-amz-content-sha256':   payloadHash,
     'Host':                   host,
@@ -102,12 +97,12 @@ async function signedFetch(filePath, keyId, secretKey, rangeHeader) {
 }
 
 const CONTENT_TYPES = {
-  mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
-  avi: 'video/x-msvideo', mkv: 'video/x-matroska',
-  gif: 'image/gif', jpg: 'image/jpeg', jpeg: 'image/jpeg',
-  png: 'image/png', webp: 'image/webp',
-  mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
-  pdf: 'application/pdf',
+  mp4:  'video/mp4',  webm: 'video/webm', mov:  'video/quicktime',
+  avi:  'video/x-msvideo', mkv: 'video/x-matroska',
+  gif:  'image/gif',  jpg:  'image/jpeg', jpeg: 'image/jpeg',
+  png:  'image/png',  webp: 'image/webp',
+  mp3:  'audio/mpeg', wav:  'audio/wav',  ogg:  'audio/ogg',
+  pdf:  'application/pdf',
 };
 
 export async function onRequest(context) {
@@ -142,8 +137,8 @@ export async function onRequest(context) {
   const rangeHeader = request.headers.get('Range') || '';
 
   try {
-    const { url, headers: fetchHeaders } = await signedFetch(
-      filePath, keyId, secretKey, rangeHeader
+    const { url, headers: fetchHeaders } = await buildSignedRequest(
+      request.method, filePath, keyId, secretKey, rangeHeader
     );
 
     const b2Res = await fetch(url, {
@@ -152,9 +147,10 @@ export async function onRequest(context) {
     });
 
     if (b2Res.status === 404) return new Response('Not Found', { status: 404 });
-    if (b2Res.status === 403) {
+
+    if (!b2Res.ok && b2Res.status !== 206) {
       const errText = await b2Res.text();
-      return new Response(`B2 Forbidden: ${errText}`, { status: 403 });
+      return new Response(`B2 Error ${b2Res.status}: ${errText}`, { status: b2Res.status });
     }
 
     const ext = filePath.split('.').pop().toLowerCase();
