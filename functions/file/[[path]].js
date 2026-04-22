@@ -1,85 +1,105 @@
-// Cloudflare Pages Function
-// Mengambil file dari private Backblaze B2 bucket menggunakan AWS Signature V4
-// Variabel B2_KEY_ID dan B2_APP_KEY disimpan di Cloudflare Environment Variables
-
 const BUCKET_NAME = 'Indoxvx-cdn';
 const ENDPOINT    = 's3.us-west-004.backblazeb2.com';
 const REGION      = 'us-west-004';
-
-// ── AWS Signature V4 helpers ──────────────────────────────────────────────────
+const SERVICE     = 's3';
 
 function hex(buffer) {
-  return Array.from(new Uint8Array(buffer))
+  return [...new Uint8Array(buffer)]
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
-async function hmac(key, data) {
-  const k = typeof key === 'string'
-    ? new TextEncoder().encode(key)
-    : key;
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw', k, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+async function sha256hex(message) {
+  const buf = await crypto.subtle.digest(
+    'SHA-256',
+    typeof message === 'string' ? new TextEncoder().encode(message) : message
   );
-  return crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(data));
+  return hex(buf);
 }
 
-async function sha256(data) {
-  return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data)));
+async function hmacSha256(key, message) {
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    typeof key === 'string' ? new TextEncoder().encode(key) : key,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  return crypto.subtle.sign(
+    'HMAC',
+    cryptoKey,
+    typeof message === 'string' ? new TextEncoder().encode(message) : message
+  );
 }
 
-async function signRequest(method, filePath, keyId, appKey, rangeHeader) {
-  const now        = new Date();
-  const datestamp  = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const timestamp  = now.toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+async function getSigningKey(secretKey, dateStamp, region, service) {
+  const kDate    = await hmacSha256('AWS4' + secretKey, dateStamp);
+  const kRegion  = await hmacSha256(kDate, region);
+  const kService = await hmacSha256(kRegion, service);
+  const kSigning = await hmacSha256(kService, 'aws4_request');
+  return kSigning;
+}
 
-  const host        = `${BUCKET_NAME}.${ENDPOINT}`;
-  const canonPath   = `/${encodeURIComponent(filePath).replace(/%2F/g, '/')}`;
-  const payloadHash = await sha256('');
+async function signedFetch(filePath, keyId, secretKey, rangeHeader) {
+  const now = new Date();
+  const amzDate   = now.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 15) + 'Z';
+  const dateStamp = amzDate.slice(0, 8);
 
-  // Canonical headers (harus sorted alphabetically)
+  const host       = `${BUCKET_NAME}.${ENDPOINT}`;
+  const objectKey  = filePath.split('/').map(encodeURIComponent).join('/');
+  const canonUri   = '/' + objectKey;
+  const canonQuery = '';
+
+  const payloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
   const headers = {
-    host,
-    'x-amz-content-sha256': payloadHash,
-    'x-amz-date': timestamp,
+    'host':                   host,
+    'x-amz-content-sha256':   payloadHash,
+    'x-amz-date':             amzDate,
   };
   if (rangeHeader) headers['range'] = rangeHeader;
 
-  const sortedKeys      = Object.keys(headers).sort();
-  const canonHeaders    = sortedKeys.map(k => `${k}:${headers[k]}\n`).join('');
-  const signedHeaders   = sortedKeys.join(';');
+  const sortedHeaderKeys = Object.keys(headers).sort();
+  const canonHeaders     = sortedHeaderKeys.map(k => `${k}:${headers[k]}\n`).join('');
+  const signedHeaders    = sortedHeaderKeys.join(';');
 
   const canonRequest = [
-    method,
-    canonPath,
-    '',               // query string
+    'GET',
+    canonUri,
+    canonQuery,
     canonHeaders,
     signedHeaders,
     payloadHash,
   ].join('\n');
 
-  const credentialScope = `${datestamp}/${REGION}/s3/aws4_request`;
-  const stringToSign = [
+  const credentialScope = `${dateStamp}/${REGION}/${SERVICE}/aws4_request`;
+  const stringToSign    = [
     'AWS4-HMAC-SHA256',
-    timestamp,
+    amzDate,
     credentialScope,
-    await sha256(canonRequest),
+    await sha256hex(canonRequest),
   ].join('\n');
 
-  const dateKey      = await hmac(`AWS4${appKey}`, datestamp);
-  const regionKey    = await hmac(dateKey, REGION);
-  const serviceKey   = await hmac(regionKey, 's3');
-  const signingKey   = await hmac(serviceKey, 'aws4_request');
-  const signature    = hex(await hmac(signingKey, stringToSign));
+  const signingKey = await getSigningKey(secretKey, dateStamp, REGION, SERVICE);
+  const signature  = hex(await hmacSha256(signingKey, stringToSign));
 
-  const authorization =
+  const authHeader =
     `AWS4-HMAC-SHA256 Credential=${keyId}/${credentialScope}, ` +
     `SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  return { authorization, timestamp, payloadHash, host, canonPath };
-}
+  const fetchHeaders = {
+    'Authorization':          authHeader,
+    'x-amz-date':             amzDate,
+    'x-amz-content-sha256':   payloadHash,
+    'Host':                   host,
+  };
+  if (rangeHeader) fetchHeaders['Range'] = rangeHeader;
 
-// ── Content-Type map ──────────────────────────────────────────────────────────
+  return {
+    url: `https://${host}${canonUri}`,
+    headers: fetchHeaders,
+  };
+}
 
 const CONTENT_TYPES = {
   mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
@@ -90,12 +110,9 @@ const CONTENT_TYPES = {
   pdf: 'application/pdf',
 };
 
-// ── Main handler ──────────────────────────────────────────────────────────────
-
 export async function onRequest(context) {
   const { request, params, env } = context;
 
-  // CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -115,41 +132,34 @@ export async function onRequest(context) {
   const filePath = params.path ? params.path.join('/') : '';
   if (!filePath) return new Response('Not Found', { status: 404 });
 
-  // Ambil credentials dari Environment Variables Cloudflare
-  const keyId  = env.B2_KEY_ID;
-  const appKey = env.B2_APP_KEY;
+  const keyId     = env.B2_KEY_ID;
+  const secretKey = env.B2_APP_KEY;
 
-  if (!keyId || !appKey) {
-    return new Response('Server misconfigured: missing B2 credentials', { status: 500 });
+  if (!keyId || !secretKey) {
+    return new Response('Missing B2 credentials', { status: 500 });
   }
 
   const rangeHeader = request.headers.get('Range') || '';
 
   try {
-    const { authorization, timestamp, payloadHash, host, canonPath } =
-      await signRequest(request.method, filePath, keyId, appKey, rangeHeader);
+    const { url, headers: fetchHeaders } = await signedFetch(
+      filePath, keyId, secretKey, rangeHeader
+    );
 
-    const b2Url = `https://${host}${canonPath}`;
-
-    const fetchHeaders = {
-      'Authorization': authorization,
-      'x-amz-content-sha256': payloadHash,
-      'x-amz-date': timestamp,
-      'Host': host,
-    };
-    if (rangeHeader) fetchHeaders['Range'] = rangeHeader;
-
-    const b2Response = await fetch(b2Url, {
+    const b2Res = await fetch(url, {
       method: request.method,
       headers: fetchHeaders,
     });
 
-    if (b2Response.status === 404) return new Response('Not Found', { status: 404 });
-    if (b2Response.status === 403) return new Response('Forbidden', { status: 403 });
+    if (b2Res.status === 404) return new Response('Not Found', { status: 404 });
+    if (b2Res.status === 403) {
+      const errText = await b2Res.text();
+      return new Response(`B2 Forbidden: ${errText}`, { status: 403 });
+    }
 
     const ext = filePath.split('.').pop().toLowerCase();
     const contentType = CONTENT_TYPES[ext]
-      || b2Response.headers.get('Content-Type')
+      || b2Res.headers.get('Content-Type')
       || 'application/octet-stream';
 
     const respHeaders = new Headers();
@@ -159,16 +169,16 @@ export async function onRequest(context) {
     respHeaders.set('Accept-Ranges', 'bytes');
 
     for (const h of ['Content-Length', 'Content-Range', 'ETag', 'Last-Modified']) {
-      const v = b2Response.headers.get(h);
+      const v = b2Res.headers.get(h);
       if (v) respHeaders.set(h, v);
     }
 
-    return new Response(b2Response.body, {
-      status: b2Response.status,
+    return new Response(b2Res.body, {
+      status: b2Res.status,
       headers: respHeaders,
     });
 
   } catch (err) {
-    return new Response(`Internal Error: ${err.message}`, { status: 500 });
+    return new Response(`Error: ${err.message}`, { status: 500 });
   }
 }
