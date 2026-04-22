@@ -1,7 +1,16 @@
-const BUCKET_NAME = 'indoxvx-cdn';
-const ENDPOINT    = 's3.us-west-004.backblazeb2.com';
-const REGION      = 'us-west-004';
-const SERVICE     = 's3';
+const BUCKET_NAME    = 'indoxvx-cdn';
+const ENDPOINT       = 's3.us-west-004.backblazeb2.com';
+const REGION         = 'us-west-004';
+const SERVICE        = 's3';
+
+// ⚠️ Ganti dengan domain website kamu sendiri
+// Bisa tambah lebih dari satu domain
+const ALLOWED_DOMAINS = [
+  'indoxvx.cam',
+  'www.indoxvx.cam',
+  'xjilbab.cam',
+  'www.xjilbab.cam',
+];
 
 function hex(buffer) {
   return [...new Uint8Array(buffer)]
@@ -11,8 +20,7 @@ function hex(buffer) {
 
 async function sha256hex(message) {
   const data = typeof message === 'string'
-    ? new TextEncoder().encode(message)
-    : message;
+    ? new TextEncoder().encode(message) : message;
   return hex(await crypto.subtle.digest('SHA-256', data));
 }
 
@@ -31,6 +39,16 @@ function uriEncodePath(path) {
       '%' + c.charCodeAt(0).toString(16).toUpperCase()
     )
   ).join('/');
+}
+
+function isAllowedReferer(referer) {
+  if (!referer) return false;
+  try {
+    const url = new URL(referer);
+    return ALLOWED_DOMAINS.includes(url.hostname);
+  } catch {
+    return false;
+  }
 }
 
 async function buildSignedRequest(method, filePath, keyId, secretKey, rangeHeader) {
@@ -55,19 +73,13 @@ async function buildSignedRequest(method, filePath, keyId, secretKey, rangeHeade
   const signedHeaders = sortedKeys.join(';');
 
   const canonRequest = [
-    method,
-    canonUri,
-    '',
-    canonHeaders,
-    signedHeaders,
-    payloadHash,
+    method, canonUri, '',
+    canonHeaders, signedHeaders, payloadHash,
   ].join('\n');
 
   const credentialScope = `${dateStamp}/${REGION}/${SERVICE}/aws4_request`;
   const stringToSign = [
-    'AWS4-HMAC-SHA256',
-    amzDate,
-    credentialScope,
+    'AWS4-HMAC-SHA256', amzDate, credentialScope,
     await sha256hex(canonRequest),
   ].join('\n');
 
@@ -81,17 +93,15 @@ async function buildSignedRequest(method, filePath, keyId, secretKey, rangeHeade
     `AWS4-HMAC-SHA256 Credential=${keyId}/${credentialScope}, ` +
     `SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  const fetchHeaders = {
-    'Authorization':          authorization,
-    'x-amz-date':             amzDate,
-    'x-amz-content-sha256':   payloadHash,
-    'Host':                   host,
-  };
-  if (rangeHeader) fetchHeaders['Range'] = rangeHeader;
-
   return {
     url: `https://${host}${canonUri}`,
-    headers: fetchHeaders,
+    headers: {
+      'Authorization':          authorization,
+      'x-amz-date':             amzDate,
+      'x-amz-content-sha256':   payloadHash,
+      'Host':                   host,
+      ...(rangeHeader ? { 'Range': rangeHeader } : {}),
+    },
   };
 }
 
@@ -107,14 +117,15 @@ const CONTENT_TYPES = {
 export async function onRequest(context) {
   const { request, params, env } = context;
 
+  // CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin':  ALLOWED_DOMAINS.map(d => `https://${d}`).join(', '),
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Range, Content-Type',
-        'Access-Control-Max-Age': '86400',
+        'Access-Control-Max-Age':       '86400',
       },
     });
   }
@@ -126,9 +137,15 @@ export async function onRequest(context) {
   const filePath = params.path ? params.path.join('/') : '';
   if (!filePath) return new Response('Not Found', { status: 404 });
 
+  // ── Cek Referer ──────────────────────────────────────────────────────────
+  const referer = request.headers.get('Referer') || '';
+  if (!isAllowedReferer(referer)) {
+    return new Response('Forbidden: embed not allowed from this domain', { status: 403 });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const keyId     = env.B2_KEY_ID;
   const secretKey = env.B2_APP_KEY;
-
   if (!keyId || !secretKey) {
     return new Response('Missing B2 credentials', { status: 500 });
   }
@@ -140,13 +157,9 @@ export async function onRequest(context) {
       request.method, filePath, keyId, secretKey, rangeHeader
     );
 
-    const b2Res = await fetch(url, {
-      method: request.method,
-      headers: fetchHeaders,
-    });
+    const b2Res = await fetch(url, { method: request.method, headers: fetchHeaders });
 
     if (b2Res.status === 404) return new Response('Not Found', { status: 404 });
-
     if (!b2Res.ok && b2Res.status !== 206) {
       const errText = await b2Res.text();
       return new Response(`B2 Error ${b2Res.status}: ${errText}`, { status: b2Res.status });
@@ -159,7 +172,7 @@ export async function onRequest(context) {
 
     const respHeaders = new Headers();
     respHeaders.set('Content-Type', contentType);
-    respHeaders.set('Access-Control-Allow-Origin', '*');
+    respHeaders.set('Access-Control-Allow-Origin', `https://${ALLOWED_DOMAINS[0]}`);
     respHeaders.set('Cache-Control', 'public, max-age=31536000, immutable');
     respHeaders.set('Accept-Ranges', 'bytes');
 
