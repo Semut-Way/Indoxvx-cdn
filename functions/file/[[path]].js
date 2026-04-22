@@ -3,15 +3,14 @@ const ENDPOINT       = 's3.us-west-004.backblazeb2.com';
 const REGION         = 'us-west-004';
 const SERVICE        = 's3';
 
-// ⚠️ Ganti dengan domain website kamu sendiri
-// Bisa tambah lebih dari satu domain
+// ⚠️ Ganti dengan domain website kamu
 const ALLOWED_DOMAINS = [
+  'vidoway.click',
+  'www.vidoway.click',
   'indoxvx.cam',
   'www.indoxvx.cam',
   'xjilbab.cam',
   'www.xjilbab.cam',
-  'vidoway.click',
-  'www.vidoway.click',
 ];
 
 function hex(buffer) {
@@ -44,9 +43,11 @@ function uriEncodePath(path) {
 }
 
 function isAllowedReferer(referer) {
-  if (!referer) return false;
+  // Kalau tidak ada referer = akses langsung via browser = izinkan
+  if (!referer) return true;
   try {
     const url = new URL(referer);
+    // Izinkan kalau dari domain sendiri
     return ALLOWED_DOMAINS.includes(url.hostname);
   } catch {
     return false;
@@ -119,12 +120,11 @@ const CONTENT_TYPES = {
 export async function onRequest(context) {
   const { request, params, env } = context;
 
-  // CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
       headers: {
-        'Access-Control-Allow-Origin':  ALLOWED_DOMAINS.map(d => `https://${d}`).join(', '),
+        'Access-Control-Allow-Origin':  '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Range, Content-Type',
         'Access-Control-Max-Age':       '86400',
@@ -139,12 +139,11 @@ export async function onRequest(context) {
   const filePath = params.path ? params.path.join('/') : '';
   if (!filePath) return new Response('Not Found', { status: 404 });
 
-  // ── Cek Referer ──────────────────────────────────────────────────────────
+  // Cek referer — tolak kalau ada referer tapi bukan dari domain kita
   const referer = request.headers.get('Referer') || '';
   if (!isAllowedReferer(referer)) {
     return new Response('Forbidden: embed not allowed from this domain', { status: 403 });
   }
-  // ─────────────────────────────────────────────────────────────────────────
 
   const keyId     = env.B2_KEY_ID;
   const secretKey = env.B2_APP_KEY;
@@ -174,7 +173,7 @@ export async function onRequest(context) {
 
     const respHeaders = new Headers();
     respHeaders.set('Content-Type', contentType);
-    respHeaders.set('Access-Control-Allow-Origin', `https://${ALLOWED_DOMAINS[0]}`);
+    respHeaders.set('Access-Control-Allow-Origin', '*');
     respHeaders.set('Cache-Control', 'public, max-age=31536000, immutable');
     respHeaders.set('Accept-Ranges', 'bytes');
 
