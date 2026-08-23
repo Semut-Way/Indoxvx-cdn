@@ -1,9 +1,8 @@
-const BUCKET_NAME    = 'indoxvx-cdn';
-const ENDPOINT       = 's3.us-west-004.backblazeb2.com';
-const REGION         = 'us-west-004';
-const SERVICE        = 's3';
+// ================================================================
+// KONFIGURASI — sesuaikan bagian ini saja
+// ================================================================
 
-// ⚠️ Ganti dengan domain website kamu
+// Domain yang diizinkan embed
 const ALLOWED_DOMAINS = [
   'vidoway.click',
   'www.vidoway.click',
@@ -12,6 +11,14 @@ const ALLOWED_DOMAINS = [
   'xjilbab.cam',
   'www.xjilbab.cam',
 ];
+
+// Prefix folder untuk routing ke bucket tertentu
+// v2 → akun B2 kedua, v3 → akun B2 ketiga, dst
+const BUCKET_PREFIXES = ['v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10'];
+
+// ================================================================
+// TIDAK PERLU UBAH APAPUN DI BAWAH INI
+// ================================================================
 
 function hex(buffer) {
   return [...new Uint8Array(buffer)]
@@ -43,23 +50,54 @@ function uriEncodePath(path) {
 }
 
 function isAllowedReferer(referer) {
-  // Kalau tidak ada referer = akses langsung via browser = izinkan
   if (!referer) return true;
   try {
     const url = new URL(referer);
-    // Izinkan kalau dari domain sendiri
     return ALLOWED_DOMAINS.includes(url.hostname);
   } catch {
     return false;
   }
 }
 
-async function buildSignedRequest(method, filePath, keyId, secretKey, rangeHeader) {
+function getBucketConfig(pathParts, env) {
+  const prefix = pathParts[0];
+  const index = BUCKET_PREFIXES.indexOf(prefix);
+
+  if (index !== -1) {
+    // Akun B2 tambahan (v2, v3, dst)
+    const num = index + 2;
+    const keyId     = env[`B2_KEY_ID_${num}`];
+    const secretKey = env[`B2_APP_KEY_${num}`];
+    const bucket    = env[`B2_BUCKET_${num}`];
+    const endpoint  = env[`B2_ENDPOINT_${num}`];
+
+    if (!keyId || !secretKey || !bucket || !endpoint) return null;
+
+    const region = endpoint.replace('s3.', '').replace('.backblazeb2.com', '');
+
+    return {
+      keyId, secretKey, bucket, endpoint, region,
+      filePath: pathParts.slice(1).join('/'),
+    };
+  }
+
+  // Default → akun B2 pertama (original, tidak berubah)
+  return {
+    keyId:     env.B2_KEY_ID,
+    secretKey: env.B2_APP_KEY,
+    bucket:    'indoxvx-cdn',
+    endpoint:  's3.us-west-004.backblazeb2.com',
+    region:    'us-west-004',
+    filePath:  pathParts.join('/'),
+  };
+}
+
+async function buildSignedRequest(method, filePath, keyId, secretKey, bucket, endpoint, region, rangeHeader) {
   const now       = new Date();
   const amzDate   = now.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 15) + 'Z';
   const dateStamp = amzDate.slice(0, 8);
 
-  const host     = `${BUCKET_NAME}.${ENDPOINT}`;
+  const host     = `${bucket}.${endpoint}`;
   const canonUri = '/' + uriEncodePath(filePath);
 
   const payloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
@@ -80,15 +118,15 @@ async function buildSignedRequest(method, filePath, keyId, secretKey, rangeHeade
     canonHeaders, signedHeaders, payloadHash,
   ].join('\n');
 
-  const credentialScope = `${dateStamp}/${REGION}/${SERVICE}/aws4_request`;
+  const credentialScope = `${dateStamp}/${region}/s3/aws4_request`;
   const stringToSign = [
     'AWS4-HMAC-SHA256', amzDate, credentialScope,
     await sha256hex(canonRequest),
   ].join('\n');
 
   const kDate    = await hmacSha256('AWS4' + secretKey, dateStamp);
-  const kRegion  = await hmacSha256(kDate, REGION);
-  const kService = await hmacSha256(kRegion, SERVICE);
+  const kRegion  = await hmacSha256(kDate, region);
+  const kService = await hmacSha256(kRegion, 's3');
   const kSigning = await hmacSha256(kService, 'aws4_request');
   const signature = hex(await hmacSha256(kSigning, stringToSign));
 
@@ -136,26 +174,32 @@ export async function onRequest(context) {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
-  const filePath = params.path ? params.path.join('/') : '';
-  if (!filePath) return new Response('Not Found', { status: 404 });
+  const pathParts = params.path ? params.path : [];
+  if (pathParts.length === 0) return new Response('Not Found', { status: 404 });
 
-  // Cek referer — tolak kalau ada referer tapi bukan dari domain kita
+  // Cek referer
   const referer = request.headers.get('Referer') || '';
   if (!isAllowedReferer(referer)) {
     return new Response('Forbidden: embed not allowed from this domain', { status: 403 });
   }
 
-  const keyId     = env.B2_KEY_ID;
-  const secretKey = env.B2_APP_KEY;
-  if (!keyId || !secretKey) {
-    return new Response('Missing B2 credentials', { status: 500 });
-  }
+  // Tentukan bucket berdasarkan prefix path
+  const config = getBucketConfig(pathParts, env);
+  if (!config) return new Response('Storage not configured for this path', { status: 500 });
+  if (!config.keyId || !config.secretKey) return new Response('Missing B2 credentials', { status: 500 });
 
   const rangeHeader = request.headers.get('Range') || '';
 
   try {
     const { url, headers: fetchHeaders } = await buildSignedRequest(
-      request.method, filePath, keyId, secretKey, rangeHeader
+      request.method,
+      config.filePath,
+      config.keyId,
+      config.secretKey,
+      config.bucket,
+      config.endpoint,
+      config.region,
+      rangeHeader
     );
 
     const b2Res = await fetch(url, { method: request.method, headers: fetchHeaders });
@@ -166,7 +210,7 @@ export async function onRequest(context) {
       return new Response(`B2 Error ${b2Res.status}: ${errText}`, { status: b2Res.status });
     }
 
-    const ext = filePath.split('.').pop().toLowerCase();
+    const ext = config.filePath.split('.').pop().toLowerCase();
     const contentType = CONTENT_TYPES[ext]
       || b2Res.headers.get('Content-Type')
       || 'application/octet-stream';
