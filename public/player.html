@@ -172,6 +172,11 @@ function togglePlay() {
 }
 
 overlay.addEventListener('click', togglePlay);
+
+// Klik video saat playing = pause
+vid.addEventListener('click', function() {
+  if (!vid.paused) { vid.pause(); }
+});
 document.getElementById('playBtn').addEventListener('click', togglePlay);
 
 vid.addEventListener('play', function() {
