@@ -6,72 +6,177 @@
 <title>Vidoway Player</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;}
-.player-wrap{position:relative;width:100%;max-width:900px;background:#000;overflow:hidden;}
-.player-wrap video{width:100%;display:block;max-height:100vh;background:#000;object-fit:contain;}
-.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .2s;}
-.play-big{width:72px;height:72px;border-radius:50%;background:rgba(220,38,38,0.92);display:flex;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 24px rgba(220,38,38,0.4);}
-.play-big:hover{transform:scale(1.1);}
-.play-big svg{width:28px;height:28px;fill:#fff;margin-left:5px;}
-.overlay.hide{opacity:0;pointer-events:none;}
-.controls{position:absolute;bottom:0;left:0;right:0;padding:6px 14px 14px;background:linear-gradient(transparent,rgba(0,0,0,0.92));display:flex;flex-direction:column;gap:7px;}
-.progress{width:100%;height:4px;background:rgba(255,255,255,0.18);border-radius:4px;cursor:pointer;transition:height .15s;}
-.progress:hover{height:6px;}
-.progress-bar{height:100%;background:#dc2626;border-radius:4px;width:0%;pointer-events:none;}
+body{background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+
+.player-wrap{
+  position:relative;width:100%;max-width:900px;
+  background:#000;border-radius:12px;overflow:hidden;
+  cursor:pointer;
+}
+.player-wrap video{
+  width:100%;display:block;max-height:100vh;
+  background:#000;object-fit:contain;
+}
+
+/* Gradient overlay */
+.grad{
+  position:absolute;inset:0;
+  background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 35%, transparent 65%, rgba(0,0,0,0.3) 100%);
+  opacity:0;transition:opacity .3s;pointer-events:none;
+}
+.player-wrap:hover .grad,
+.player-wrap.touched .grad{ opacity:1; }
+
+/* Tombol play besar tengah */
+.play-center{
+  position:absolute;inset:0;display:flex;
+  align-items:center;justify-content:center;
+  pointer-events:none;
+}
+.play-ring{
+  width:76px;height:76px;border-radius:50%;
+  background:rgba(220,38,38,0.88);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 8px rgba(220,38,38,0.2);
+  transform:scale(0.85);opacity:0;
+  transition:transform .2s,opacity .2s;
+}
+.play-ring svg{width:30px;height:30px;fill:#fff;margin-left:5px;}
+.player-wrap.paused .play-ring{ transform:scale(1);opacity:1; }
+
+/* Controls */
+.controls{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:0 16px 16px;
+  opacity:0;transform:translateY(6px);
+  transition:opacity .3s,transform .3s;
+  pointer-events:none;
+}
+.player-wrap:hover .controls,
+.player-wrap.touched .controls{
+  opacity:1;transform:translateY(0);pointer-events:all;
+}
+
+/* Progress bar */
+.prog-wrap{margin-bottom:10px;padding:6px 0;cursor:pointer;}
+.prog-track{
+  height:4px;background:rgba(255,255,255,0.2);
+  border-radius:99px;position:relative;
+  transition:height .15s;
+}
+.prog-wrap:hover .prog-track{ height:6px; }
+.prog-fill{
+  height:100%;background:#dc2626;border-radius:99px;
+  width:0%;position:relative;transition:width .1s linear;
+}
+.prog-fill::after{
+  content:'';position:absolute;right:-6px;top:50%;
+  transform:translateY(-50%) scale(0);
+  width:14px;height:14px;border-radius:50%;background:#dc2626;
+  transition:transform .15s;
+}
+.prog-wrap:hover .prog-fill::after{ transform:translateY(-50%) scale(1); }
+
+/* Bottom row */
 .bottom{display:flex;align-items:center;gap:10px;}
-.btn{background:none;border:none;cursor:pointer;padding:3px;display:flex;align-items:center;opacity:.8;transition:opacity .15s;}
-.btn:hover{opacity:1;}
-.btn svg{width:19px;height:19px;fill:#fff;}
+.btn{
+  background:none;border:none;cursor:pointer;
+  padding:4px;display:flex;align-items:center;
+  opacity:.9;transition:opacity .15s,transform .15s;flex-shrink:0;
+}
+.btn:hover{ opacity:1;transform:scale(1.1); }
+.btn svg{ width:20px;height:20px;fill:#fff; }
+
+/* Volume */
 .vol-wrap{display:flex;align-items:center;gap:6px;}
-.vol-slider{width:64px;height:3px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.25);border-radius:4px;outline:none;cursor:pointer;}
-.vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#dc2626;cursor:pointer;}
-.time{font-size:12px;color:rgba(255,255,255,0.8);min-width:90px;}
+.vol-slider{
+  width:0;overflow:hidden;transition:width .2s;
+  height:4px;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+  border-radius:99px;outline:none;flex-shrink:0;
+}
+.vol-wrap:hover .vol-slider,
+.vol-wrap:focus-within .vol-slider{ width:70px; }
+.vol-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;
+  border-radius:50%;background:#dc2626;cursor:pointer;
+  box-shadow:0 0 6px rgba(220,38,38,0.6);
+  transition:transform .15s;
+}
+.vol-wrap:hover .vol-slider::-webkit-slider-thumb{ transform:scale(1.15); }
+.vol-slider::-moz-range-thumb{
+  width:14px;height:14px;border:none;
+  border-radius:50%;background:#dc2626;cursor:pointer;
+  box-shadow:0 0 6px rgba(220,38,38,0.6);
+}
+
+.time{
+  font-size:12px;color:rgba(255,255,255,0.85);
+  letter-spacing:.3px;white-space:nowrap;flex-shrink:0;
+}
 .spacer{flex:1;}
-.ad-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;}
+.fs-btn svg{width:18px;height:18px;}
+
+/* Ad overlay */
+.ad-overlay{
+  position:absolute;inset:0;
+  background:rgba(0,0,0,0.85);
+  display:flex;align-items:center;justify-content:center;
+  z-index:20;backdrop-filter:blur(4px);
+}
 .ad-overlay.hide{display:none;}
-.ad-box{width:90%;max-width:500px;background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:24px;text-align:center;color:#fff;}
-.ad-label{font-size:12px;color:#aaa;margin-bottom:12px;}
+.ad-box{
+  width:92%;max-width:500px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:16px;padding:24px;text-align:center;
+  color:#fff;backdrop-filter:blur(10px);
+}
+.ad-label{font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;}
 .ad-content{width:100%;min-height:100px;margin-bottom:16px;}
 .skip-wrap{display:flex;align-items:center;justify-content:center;gap:12px;}
-.skip-btn{background:#dc2626;color:#fff;border:none;padding:8px 22px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;}
-.skip-btn:disabled{background:#444;color:#888;cursor:not-allowed;}
-.skip-count{font-size:12px;color:#aaa;}
+.skip-btn{
+  background:#dc2626;color:#fff;border:none;
+  padding:9px 24px;border-radius:99px;cursor:pointer;
+  font-size:13px;font-weight:600;transition:background .15s,transform .15s;
+}
+.skip-btn:hover:not(:disabled){background:#b91c1c;transform:scale(1.03);}
+.skip-btn:disabled{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);cursor:not-allowed;}
+.skip-count{font-size:12px;color:rgba(255,255,255,0.5);}
 </style>
 </head>
 <body>
-<div class="player-wrap" id="wrap">
+<div class="player-wrap paused" id="wrap">
   <video id="vid" preload="metadata" oncontextmenu="return false" disablePictureInPicture playsinline>
-    <source src="" type="video/mp4" id="videoSrc"/>
+    <source src="" type="video/mp4"/>
   </video>
 
-  <!-- Ad Overlay -->
-  <div class="ad-overlay hide" id="adOverlay">
-    <div class="ad-box">
-      <p class="ad-label">Iklan — video akan diputar setelah iklan selesai</p>
-      <div class="ad-content" id="adContent">
-        <!-- ================================================ -->
-        <!-- PASTE SCRIPT IKLAN KAMU DI SINI                 -->
-        <!-- Contoh: PopAds, AdSense, banner, VAST, dll      -->
-        <!-- ================================================ -->
-      </div>
-      <div class="skip-wrap">
-        <button class="skip-btn" id="skipBtn" disabled>Lewati iklan</button>
-        <span class="skip-count" id="skipCount">Dapat dilewati dalam 5 detik</span>
-      </div>
-    </div>
-  </div>
+  <div class="grad"></div>
 
-  <!-- Play overlay -->
-  <div class="overlay" id="overlay">
-    <div class="play-big">
+  <div class="play-center">
+    <div class="play-ring" id="playRing">
       <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
     </div>
   </div>
 
-  <!-- Controls -->
+  <div class="ad-overlay hide" id="adOverlay">
+    <div class="ad-box">
+      <p class="ad-label">Advertisement</p>
+      <div class="ad-content" id="adContent">
+        <!-- PASTE SCRIPT IKLAN DI SINI -->
+      </div>
+      <div class="skip-wrap">
+        <button class="skip-btn" id="skipBtn" disabled>Lewati iklan</button>
+        <span class="skip-count" id="skipCount"></span>
+      </div>
+    </div>
+  </div>
+
   <div class="controls">
-    <div class="progress" id="prog">
-      <div class="progress-bar" id="bar"></div>
+    <div class="prog-wrap" id="prog">
+      <div class="prog-track">
+        <div class="prog-fill" id="bar"></div>
+      </div>
     </div>
     <div class="bottom">
       <button class="btn" id="playBtn">
@@ -79,13 +184,13 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
       </button>
       <div class="vol-wrap">
         <button class="btn" id="muteBtn">
-          <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+          <svg viewBox="0 0 24 24" id="volIcon"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
         </button>
-        <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.05" value="1"/>
+        <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.01" value="1"/>
       </div>
       <span class="time" id="timeDisp">0:00 / 0:00</span>
       <div class="spacer"></div>
-      <button class="btn" id="fsBtn">
+      <button class="btn fs-btn" id="fsBtn">
         <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
       </button>
     </div>
@@ -96,125 +201,138 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 // ============================================================
 // KONFIGURASI — hanya ubah bagian ini
 // ============================================================
-
-// ⚠️ Aktifkan/nonaktifkan iklan di sini
-// true  = iklan aktif (muncul sebelum video)
-// false = iklan nonaktif (video langsung putar)
-var ADS_ENABLED = false;
-
-// Berapa detik sebelum tombol skip muncul
+var ADS_ENABLED        = false; // true=iklan aktif, false=nonaktif
 var SKIP_AFTER_SECONDS = 5;
-
-// Base URL CDN kamu
-var CDN_BASE_URL = 'https://vidoway.click/file';
-
-// ============================================================
-// TIDAK PERLU UBAH DI BAWAH INI
+var CDN_BASE_URL       = 'https://vidoway.click/file';
 // ============================================================
 
-var vid = document.getElementById('vid');
-var overlay = document.getElementById('overlay');
-var bar = document.getElementById('bar');
-var prog = document.getElementById('prog');
-var playIcon = document.getElementById('playIcon');
+var vid       = document.getElementById('vid');
+var wrap      = document.getElementById('wrap');
+var bar       = document.getElementById('bar');
+var prog      = document.getElementById('prog');
+var playIcon  = document.getElementById('playIcon');
 var volSlider = document.getElementById('volSlider');
-var timeDisp = document.getElementById('timeDisp');
-var wrap = document.getElementById('wrap');
+var timeDisp  = document.getElementById('timeDisp');
 var adOverlay = document.getElementById('adOverlay');
-var skipBtn = document.getElementById('skipBtn');
+var skipBtn   = document.getElementById('skipBtn');
 var skipCount = document.getElementById('skipCount');
-var adShown = false;
+var adShown   = false;
 var skipTimer = null;
+var touchTimer= null;
 
-// Ambil nama video dari URL parameter ?v=
+// Load video dari ?v=
 var urlParams = new URLSearchParams(window.location.search);
 var videoFile = urlParams.get('v');
-if (videoFile) {
-  vid.src = CDN_BASE_URL + '/' + videoFile;
-  vid.load();
-}
+if (videoFile) { vid.src = CDN_BASE_URL + '/' + videoFile; vid.load(); }
 
-function fmt(s) {
-  var m = Math.floor(s / 60);
-  return m + ':' + (Math.floor(s % 60) + '').padStart(2, '0');
-}
+function fmt(s){ var m=Math.floor(s/60); return m+':'+(Math.floor(s%60)+'').padStart(2,'0'); }
 
-function showAd() {
+function updateVolGradient(val){
+  volSlider.style.background =
+    'linear-gradient(to right, #dc2626 '+Math.round(val*100)+'%, rgba(255,255,255,0.25) '+Math.round(val*100)+'%)';
+}
+updateVolGradient(1);
+
+function showAd(){
   adOverlay.classList.remove('hide');
   var sec = SKIP_AFTER_SECONDS;
   skipBtn.disabled = true;
-  skipCount.textContent = 'Dapat dilewati dalam ' + sec + ' detik';
-  skipTimer = setInterval(function() {
+  skipCount.textContent = sec + 'd';
+  skipTimer = setInterval(function(){
     sec--;
-    if (sec <= 0) {
-      clearInterval(skipTimer);
-      skipBtn.disabled = false;
-      skipCount.textContent = '';
-    } else {
-      skipCount.textContent = 'Dapat dilewati dalam ' + sec + ' detik';
-    }
+    if(sec<=0){ clearInterval(skipTimer); skipBtn.disabled=false; skipCount.textContent=''; }
+    else { skipCount.textContent = sec+'d'; }
   }, 1000);
 }
 
-skipBtn.addEventListener('click', function() {
+skipBtn.addEventListener('click', function(){
   clearInterval(skipTimer);
   adOverlay.classList.add('hide');
   vid.play();
 });
 
-function togglePlay() {
-  if (ADS_ENABLED && !adShown) {
-    adShown = true;
-    showAd();
-    return;
-  }
+function tryPlay(){
+  if(ADS_ENABLED && !adShown){ adShown=true; showAd(); return; }
   vid.paused ? vid.play() : vid.pause();
 }
 
-overlay.addEventListener('click', togglePlay);
-
-// Klik video saat playing = pause
-vid.addEventListener('click', function() {
-  if (!vid.paused) { vid.pause(); }
+// Klik area video
+wrap.addEventListener('click', function(e){
+  if(e.target.closest('.controls') || e.target.closest('.ad-overlay')) return;
+  tryPlay();
 });
-document.getElementById('playBtn').addEventListener('click', togglePlay);
 
-vid.addEventListener('play', function() {
-  overlay.classList.add('hide');
+// Touch support
+var lastTap = 0;
+wrap.addEventListener('touchstart', function(e){
+  if(e.target.closest('.controls') || e.target.closest('.ad-overlay')) return;
+  var now = Date.now();
+  if(now - lastTap < 300){ tryPlay(); lastTap=0; }
+  else {
+    lastTap = now;
+    wrap.classList.add('touched');
+    clearTimeout(touchTimer);
+    touchTimer = setTimeout(function(){ wrap.classList.remove('touched'); }, 3000);
+  }
+}, {passive:true});
+
+document.getElementById('playBtn').addEventListener('click', function(e){ e.stopPropagation(); tryPlay(); });
+
+vid.addEventListener('play', function(){
+  wrap.classList.remove('paused');
   playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
 });
-vid.addEventListener('pause', function() {
-  overlay.classList.remove('hide');
+vid.addEventListener('pause', function(){
+  wrap.classList.add('paused');
   playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
 });
-vid.addEventListener('timeupdate', function() {
-  if (vid.duration) {
-    bar.style.width = (vid.currentTime / vid.duration * 100) + '%';
-    timeDisp.textContent = fmt(vid.currentTime) + ' / ' + fmt(vid.duration);
+vid.addEventListener('timeupdate', function(){
+  if(vid.duration){
+    bar.style.width = (vid.currentTime/vid.duration*100)+'%';
+    timeDisp.textContent = fmt(vid.currentTime)+' / '+fmt(vid.duration);
   }
 });
-vid.addEventListener('loadedmetadata', function() {
-  timeDisp.textContent = '0:00 / ' + fmt(vid.duration);
-});
-vid.addEventListener('ended', function() {
-  overlay.classList.remove('hide');
+vid.addEventListener('loadedmetadata', function(){ timeDisp.textContent = '0:00 / '+fmt(vid.duration); });
+vid.addEventListener('ended', function(){
+  wrap.classList.add('paused');
   playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
   adShown = false;
 });
 
-prog.addEventListener('click', function(e) {
+// Progress seek
+var dragging = false;
+function seekTo(e){
   var r = prog.getBoundingClientRect();
-  vid.currentTime = (e.clientX - r.left) / r.width * vid.duration;
+  var x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+  if(vid.duration) vid.currentTime = Math.max(0,Math.min(1,x/r.width)) * vid.duration;
+}
+prog.addEventListener('mousedown', function(e){ dragging=true; seekTo(e); });
+document.addEventListener('mousemove', function(e){ if(dragging) seekTo(e); });
+document.addEventListener('mouseup', function(){ dragging=false; });
+prog.addEventListener('touchstart', function(e){ seekTo(e); }, {passive:true});
+prog.addEventListener('touchmove', function(e){ seekTo(e); e.preventDefault(); }, {passive:false});
+
+// Volume
+volSlider.addEventListener('input', function(){
+  vid.volume = this.value; vid.muted = this.value==0;
+  updateVolGradient(this.value);
+  var v = parseFloat(this.value);
+  document.getElementById('volIcon').innerHTML = v==0
+    ? '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>'
+    : v < 0.5
+    ? '<path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>'
+    : '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
 });
-volSlider.addEventListener('input', function() {
-  vid.volume = this.value;
-  vid.muted = this.value == 0;
-});
-document.getElementById('muteBtn').addEventListener('click', function() {
+
+document.getElementById('muteBtn').addEventListener('click', function(e){
+  e.stopPropagation();
   vid.muted = !vid.muted;
   volSlider.value = vid.muted ? 0 : vid.volume;
+  updateVolGradient(vid.muted ? 0 : vid.volume);
 });
-document.getElementById('fsBtn').addEventListener('click', function() {
+
+document.getElementById('fsBtn').addEventListener('click', function(e){
+  e.stopPropagation();
   wrap.requestFullscreen ? wrap.requestFullscreen() : wrap.webkitRequestFullscreen && wrap.webkitRequestFullscreen();
 });
 </script>
