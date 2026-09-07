@@ -8,138 +8,83 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
 
-.player-wrap{
-  position:relative;width:100%;max-width:900px;
-  background:#000;border-radius:12px;overflow:hidden;
-  cursor:pointer;
-}
-.player-wrap video{
-  width:100%;display:block;max-height:100vh;
-  background:#000;object-fit:contain;
-}
+.player-wrap{position:relative;width:100%;max-width:900px;background:#000;border-radius:12px;overflow:hidden;cursor:pointer;}
+.player-wrap video{width:100%;display:block;max-height:100vh;background:#000;object-fit:contain;}
 
-/* Gradient overlay */
-.grad{
-  position:absolute;inset:0;
-  background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 35%, transparent 65%, rgba(0,0,0,0.3) 100%);
-  opacity:0;transition:opacity .3s;pointer-events:none;
-}
-.player-wrap:hover .grad,
-.player-wrap.touched .grad{ opacity:1; }
+.grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 35%,transparent 65%,rgba(0,0,0,0.3) 100%);opacity:0;transition:opacity .3s;pointer-events:none;}
+.player-wrap:hover .grad,.player-wrap.touched .grad{opacity:1;}
 
-/* Tombol play besar tengah */
-.play-center{
-  position:absolute;inset:0;display:flex;
-  align-items:center;justify-content:center;
-  pointer-events:none;
-}
-.play-ring{
-  width:76px;height:76px;border-radius:50%;
-  background:rgba(220,38,38,0.88);
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 0 0 8px rgba(220,38,38,0.2);
-  transform:scale(0.85);opacity:0;
-  transition:transform .2s,opacity .2s;
-}
-.play-ring svg{width:30px;height:30px;fill:#fff;margin-left:5px;}
-.player-wrap.paused .play-ring{ transform:scale(1);opacity:1; }
+.play-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;text-shadow:none !important;}
+.play-ring{width:76px;height:76px;border-radius:50%;background:rgba(220,38,38,0.88);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(220,38,38,0.4);transform:scale(0.85);opacity:0;transition:transform .2s,opacity .2s;}
+.play-ring svg{width:30px;height:30px;fill:#fff !important;margin-left:5px;filter:none !important;}
+.player-wrap.paused .play-ring{transform:scale(1);opacity:1;}
 
-/* Controls */
-.controls{
-  position:absolute;bottom:0;left:0;right:0;
-  padding:0 16px 16px;
-  opacity:0;transform:translateY(6px);
-  transition:opacity .3s,transform .3s;
-  pointer-events:none;
-}
-.player-wrap:hover .controls,
-.player-wrap.touched .controls{
-  opacity:1;transform:translateY(0);pointer-events:all;
-}
+.controls{position:absolute;bottom:0;left:0;right:0;padding:0 16px 16px;opacity:0;transform:translateY(6px);transition:opacity .3s,transform .3s;pointer-events:none;}
+.player-wrap:hover .controls,.player-wrap.touched .controls{opacity:1;transform:translateY(0);pointer-events:all;}
 
-/* Progress bar */
 .prog-wrap{margin-bottom:10px;padding:6px 0;cursor:pointer;}
-.prog-track{
-  height:4px;background:rgba(255,255,255,0.2);
-  border-radius:99px;position:relative;
-  transition:height .15s;
-}
-.prog-wrap:hover .prog-track{ height:6px; }
-.prog-fill{
-  height:100%;background:#dc2626;border-radius:99px;
-  width:0%;position:relative;transition:width .1s linear;
-}
-.prog-fill::after{
-  content:'';position:absolute;right:-6px;top:50%;
-  transform:translateY(-50%) scale(0);
-  width:14px;height:14px;border-radius:50%;background:#dc2626;
-  transition:transform .15s;
-}
-.prog-wrap:hover .prog-fill::after{ transform:translateY(-50%) scale(1); }
+.prog-track{height:4px;background:rgba(255,255,255,0.2);border-radius:99px;position:relative;transition:height .15s;}
+.prog-wrap:hover .prog-track{height:6px;}
+.prog-fill{height:100%;background:#dc2626;border-radius:99px;width:0%;position:relative;transition:width .1s linear;}
+.prog-fill::after{content:'';position:absolute;right:-7px;top:50%;transform:translateY(-50%) scale(0);width:14px;height:14px;border-radius:50%;background:#dc2626;transition:transform .15s;}
+.prog-wrap:hover .prog-fill::after{transform:translateY(-50%) scale(1);}
 
-/* Bottom row */
 .bottom{display:flex;align-items:center;gap:10px;}
-.btn{
-  background:none;border:none;cursor:pointer;
-  padding:4px;display:flex;align-items:center;
-  opacity:.9;transition:opacity .15s,transform .15s;flex-shrink:0;
-}
-.btn:hover{ opacity:1;transform:scale(1.1); }
-.btn svg{ width:20px;height:20px;fill:#fff; }
+.btn{background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;opacity:.9;transition:opacity .15s,transform .15s;flex-shrink:0;}
+.btn:hover{opacity:1;transform:scale(1.1);}
+.btn svg{width:20px;height:20px;fill:#fff !important;filter:none !important;}
 
-/* Volume */
-.vol-wrap{display:flex;align-items:center;gap:6px;}
+/* ── Volume — YouTube style ── */
+.vol-wrap{display:flex;align-items:center;gap:8px;}
+
+/* Container slider yang expand saat hover */
+.vol-slider-wrap{
+  width:0;overflow:hidden;
+  transition:width .25s ease;
+  flex-shrink:0;
+  display:flex;align-items:center;
+}
+.vol-wrap:hover .vol-slider-wrap,
+.vol-wrap:focus-within .vol-slider-wrap{width:80px;}
+
+/* Slider sendiri selalu width penuh dalam container */
 .vol-slider{
-  width:0;overflow:hidden;transition:width .2s;
-  height:4px;cursor:pointer;
+  width:80px;height:4px;
   -webkit-appearance:none;appearance:none;
-  border-radius:99px;outline:none;flex-shrink:0;
+  border-radius:99px;outline:none;cursor:pointer;
+  flex-shrink:0;
 }
-.vol-wrap:hover .vol-slider,
-.vol-wrap:focus-within .vol-slider{ width:70px; }
+
+/* Thumb bulat merah seperti YouTube */
 .vol-slider::-webkit-slider-thumb{
-  -webkit-appearance:none;width:14px;height:14px;
-  border-radius:50%;background:#dc2626;cursor:pointer;
-  box-shadow:0 0 6px rgba(220,38,38,0.6);
-  transition:transform .15s;
+  -webkit-appearance:none;
+  width:14px;height:14px;
+  border-radius:50%;
+  background:#dc2626;
+  cursor:pointer;
+  box-shadow:0 0 4px rgba(220,38,38,0.6);
+  margin-top:-5px;
 }
-.vol-wrap:hover .vol-slider::-webkit-slider-thumb{ transform:scale(1.15); }
 .vol-slider::-moz-range-thumb{
   width:14px;height:14px;border:none;
   border-radius:50%;background:#dc2626;cursor:pointer;
-  box-shadow:0 0 6px rgba(220,38,38,0.6);
+}
+.vol-slider::-webkit-slider-runnable-track{
+  height:4px;border-radius:99px;
 }
 
-.time{
-  font-size:12px;color:rgba(255,255,255,0.85);
-  letter-spacing:.3px;white-space:nowrap;flex-shrink:0;
-}
+.time{font-size:12px;color:rgba(255,255,255,0.85);letter-spacing:.3px;white-space:nowrap;flex-shrink:0;}
 .spacer{flex:1;}
 .fs-btn svg{width:18px;height:18px;}
 
 /* Ad overlay */
-.ad-overlay{
-  position:absolute;inset:0;
-  background:rgba(0,0,0,0.85);
-  display:flex;align-items:center;justify-content:center;
-  z-index:20;backdrop-filter:blur(4px);
-}
+.ad-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:20;backdrop-filter:blur(4px);}
 .ad-overlay.hide{display:none;}
-.ad-box{
-  width:92%;max-width:500px;
-  background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:16px;padding:24px;text-align:center;
-  color:#fff;backdrop-filter:blur(10px);
-}
+.ad-box{width:92%;max-width:500px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;text-align:center;color:#fff;backdrop-filter:blur(10px);}
 .ad-label{font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;}
 .ad-content{width:100%;min-height:100px;margin-bottom:16px;}
 .skip-wrap{display:flex;align-items:center;justify-content:center;gap:12px;}
-.skip-btn{
-  background:#dc2626;color:#fff;border:none;
-  padding:9px 24px;border-radius:99px;cursor:pointer;
-  font-size:13px;font-weight:600;transition:background .15s,transform .15s;
-}
+.skip-btn{background:#dc2626;color:#fff;border:none;padding:9px 24px;border-radius:99px;cursor:pointer;font-size:13px;font-weight:600;transition:background .15s,transform .15s;}
 .skip-btn:hover:not(:disabled){background:#b91c1c;transform:scale(1.03);}
 .skip-btn:disabled{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);cursor:not-allowed;}
 .skip-count{font-size:12px;color:rgba(255,255,255,0.5);}
@@ -155,7 +100,9 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 
   <div class="play-center">
     <div class="play-ring" id="playRing">
-      <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 5v14l11-7z" fill="#fff"/>
+      </svg>
     </div>
   </div>
 
@@ -180,18 +127,27 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
     </div>
     <div class="bottom">
       <button class="btn" id="playBtn">
-        <svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z"/></svg>
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="playIcon">
+          <path d="M8 5v14l11-7z" fill="#fff"/>
+        </svg>
       </button>
       <div class="vol-wrap">
         <button class="btn" id="muteBtn">
-          <svg viewBox="0 0 24 24" id="volIcon"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="volIcon">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" fill="#fff"/>
+          </svg>
         </button>
-        <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.01" value="1"/>
+        <!-- Wrapper expand saat hover -->
+        <div class="vol-slider-wrap">
+          <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.01" value="1"/>
+        </div>
       </div>
       <span class="time" id="timeDisp">0:00 / 0:00</span>
       <div class="spacer"></div>
       <button class="btn fs-btn" id="fsBtn">
-        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" fill="#fff"/>
+        </svg>
       </button>
     </div>
   </div>
@@ -199,9 +155,9 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 
 <script>
 // ============================================================
-// KONFIGURASI — hanya ubah bagian ini
+// KONFIGURASI
 // ============================================================
-var ADS_ENABLED        = false; // true=iklan aktif, false=nonaktif
+var ADS_ENABLED        = false;
 var SKIP_AFTER_SECONDS = 5;
 var CDN_BASE_URL       = 'https://vidoway.click/file';
 // ============================================================
@@ -216,14 +172,15 @@ var timeDisp  = document.getElementById('timeDisp');
 var adOverlay = document.getElementById('adOverlay');
 var skipBtn   = document.getElementById('skipBtn');
 var skipCount = document.getElementById('skipCount');
+var muteBtn   = document.getElementById('muteBtn');
+var volIcon   = document.getElementById('volIcon');
 var adShown   = false;
 var skipTimer = null;
 var touchTimer= null;
 
-// Load video dari ?v=
 var urlParams = new URLSearchParams(window.location.search);
 var videoFile = urlParams.get('v');
-if (videoFile) { vid.src = CDN_BASE_URL + '/' + videoFile; vid.load(); }
+if(videoFile){ vid.src = CDN_BASE_URL+'/'+videoFile; vid.load(); }
 
 function fmt(s){ var m=Math.floor(s/60); return m+':'+(Math.floor(s%60)+'').padStart(2,'0'); }
 
@@ -233,107 +190,113 @@ function updateVolGradient(val){
 }
 updateVolGradient(1);
 
-function showAd(){
-  adOverlay.classList.remove('hide');
-  var sec = SKIP_AFTER_SECONDS;
-  skipBtn.disabled = true;
-  skipCount.textContent = sec + 'd';
-  skipTimer = setInterval(function(){
-    sec--;
-    if(sec<=0){ clearInterval(skipTimer); skipBtn.disabled=false; skipCount.textContent=''; }
-    else { skipCount.textContent = sec+'d'; }
-  }, 1000);
+function updateVolIcon(val, muted){
+  var path = '';
+  if(muted || val==0){
+    path = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" fill="#fff"/>';
+  } else if(val<0.5){
+    path = '<path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z" fill="#fff"/>';
+  } else {
+    path = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" fill="#fff"/>';
+  }
+  volIcon.innerHTML = path;
 }
 
-skipBtn.addEventListener('click', function(){
+function showAd(){
+  adOverlay.classList.remove('hide');
+  var sec=SKIP_AFTER_SECONDS;
+  skipBtn.disabled=true;
+  skipCount.textContent=sec+'d';
+  skipTimer=setInterval(function(){
+    sec--;
+    if(sec<=0){clearInterval(skipTimer);skipBtn.disabled=false;skipCount.textContent='';}
+    else{skipCount.textContent=sec+'d';}
+  },1000);
+}
+
+skipBtn.addEventListener('click',function(){
   clearInterval(skipTimer);
   adOverlay.classList.add('hide');
   vid.play();
 });
 
 function tryPlay(){
-  if(ADS_ENABLED && !adShown){ adShown=true; showAd(); return; }
-  vid.paused ? vid.play() : vid.pause();
+  if(ADS_ENABLED&&!adShown){adShown=true;showAd();return;}
+  vid.paused?vid.play():vid.pause();
 }
 
-// Klik area video
-wrap.addEventListener('click', function(e){
-  if(e.target.closest('.controls') || e.target.closest('.ad-overlay')) return;
+wrap.addEventListener('click',function(e){
+  if(e.target.closest('.controls')||e.target.closest('.ad-overlay'))return;
   tryPlay();
 });
 
-// Touch support
-var lastTap = 0;
-wrap.addEventListener('touchstart', function(e){
-  if(e.target.closest('.controls') || e.target.closest('.ad-overlay')) return;
-  var now = Date.now();
-  if(now - lastTap < 300){ tryPlay(); lastTap=0; }
-  else {
-    lastTap = now;
+var lastTap=0;
+wrap.addEventListener('touchstart',function(e){
+  if(e.target.closest('.controls')||e.target.closest('.ad-overlay'))return;
+  var now=Date.now();
+  if(now-lastTap<300){tryPlay();lastTap=0;}
+  else{
+    lastTap=now;
     wrap.classList.add('touched');
     clearTimeout(touchTimer);
-    touchTimer = setTimeout(function(){ wrap.classList.remove('touched'); }, 3000);
+    touchTimer=setTimeout(function(){wrap.classList.remove('touched');},3000);
   }
-}, {passive:true});
+},{passive:true});
 
-document.getElementById('playBtn').addEventListener('click', function(e){ e.stopPropagation(); tryPlay(); });
+document.getElementById('playBtn').addEventListener('click',function(e){e.stopPropagation();tryPlay();});
 
-vid.addEventListener('play', function(){
+vid.addEventListener('play',function(){
   wrap.classList.remove('paused');
-  playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+  playIcon.innerHTML='<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="#fff"/>';
 });
-vid.addEventListener('pause', function(){
+vid.addEventListener('pause',function(){
   wrap.classList.add('paused');
-  playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+  playIcon.innerHTML='<path d="M8 5v14l11-7z" fill="#fff"/>';
 });
-vid.addEventListener('timeupdate', function(){
+vid.addEventListener('timeupdate',function(){
   if(vid.duration){
-    bar.style.width = (vid.currentTime/vid.duration*100)+'%';
-    timeDisp.textContent = fmt(vid.currentTime)+' / '+fmt(vid.duration);
+    bar.style.width=(vid.currentTime/vid.duration*100)+'%';
+    timeDisp.textContent=fmt(vid.currentTime)+' / '+fmt(vid.duration);
   }
 });
-vid.addEventListener('loadedmetadata', function(){ timeDisp.textContent = '0:00 / '+fmt(vid.duration); });
-vid.addEventListener('ended', function(){
+vid.addEventListener('loadedmetadata',function(){timeDisp.textContent='0:00 / '+fmt(vid.duration);});
+vid.addEventListener('ended',function(){
   wrap.classList.add('paused');
-  playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-  adShown = false;
+  playIcon.innerHTML='<path d="M8 5v14l11-7z" fill="#fff"/>';
+  adShown=false;
 });
 
-// Progress seek
-var dragging = false;
+var dragging=false;
 function seekTo(e){
-  var r = prog.getBoundingClientRect();
-  var x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-  if(vid.duration) vid.currentTime = Math.max(0,Math.min(1,x/r.width)) * vid.duration;
+  var r=prog.getBoundingClientRect();
+  var x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+  if(vid.duration)vid.currentTime=Math.max(0,Math.min(1,x/r.width))*vid.duration;
 }
-prog.addEventListener('mousedown', function(e){ dragging=true; seekTo(e); });
-document.addEventListener('mousemove', function(e){ if(dragging) seekTo(e); });
-document.addEventListener('mouseup', function(){ dragging=false; });
-prog.addEventListener('touchstart', function(e){ seekTo(e); }, {passive:true});
-prog.addEventListener('touchmove', function(e){ seekTo(e); e.preventDefault(); }, {passive:false});
+prog.addEventListener('mousedown',function(e){dragging=true;seekTo(e);});
+document.addEventListener('mousemove',function(e){if(dragging)seekTo(e);});
+document.addEventListener('mouseup',function(){dragging=false;});
+prog.addEventListener('touchstart',function(e){seekTo(e);},{passive:true});
+prog.addEventListener('touchmove',function(e){seekTo(e);e.preventDefault();},{passive:false});
 
-// Volume
-volSlider.addEventListener('input', function(){
-  vid.volume = this.value; vid.muted = this.value==0;
-  updateVolGradient(this.value);
-  var v = parseFloat(this.value);
-  document.getElementById('volIcon').innerHTML = v==0
-    ? '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>'
-    : v < 0.5
-    ? '<path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>'
-    : '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+volSlider.addEventListener('input',function(){
+  var v=parseFloat(this.value);
+  vid.volume=v;vid.muted=(v===0);
+  updateVolGradient(v);
+  updateVolIcon(v,vid.muted);
 });
 
-document.getElementById('muteBtn').addEventListener('click', function(e){
+muteBtn.addEventListener('click',function(e){
   e.stopPropagation();
-  vid.muted = !vid.muted;
-  volSlider.value = vid.muted ? 0 : vid.volume;
-  updateVolGradient(vid.muted ? 0 : vid.volume);
+  vid.muted=!vid.muted;
+  var v=vid.muted?0:vid.volume;
+  volSlider.value=v;
+  updateVolGradient(v);
+  updateVolIcon(vid.volume,vid.muted);
 });
 
-document.getElementById('fsBtn').addEventListener('click', function(e){
+document.getElementById('fsBtn').addEventListener('click',function(e){
   e.stopPropagation();
-  wrap.requestFullscreen ? wrap.requestFullscreen() : wrap.webkitRequestFullscreen && wrap.webkitRequestFullscreen();
+  wrap.requestFullscreen?wrap.requestFullscreen():wrap.webkitRequestFullscreen&&wrap.webkitRequestFullscreen();
 });
 </script>
 </body>
