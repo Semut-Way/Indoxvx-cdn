@@ -1,1 +1,3 @@
-/  /404.html  404
+/file/*  /file/:splat  200
+/player  /player.html  200
+/*       /404.html     404
