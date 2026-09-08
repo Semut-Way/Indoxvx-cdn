@@ -80,7 +80,9 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 /* Ad overlay */
 .ad-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:20;backdrop-filter:blur(4px);}
 .ad-overlay.hide{display:none;}
-.ad-box{width:92%;max-width:500px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;text-align:center;color:#fff;backdrop-filter:blur(10px);}
+.ad-box{width:92%;max-width:500px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;text-align:center;color:#fff;backdrop-filter:blur(10px);position:relative;}
+.ad-close{position:absolute;top:10px;right:12px;background:rgba(255,255,255,0.1);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.ad-close:hover{background:rgba(255,255,255,0.25);}
 .ad-label{font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;}
 .ad-content{width:100%;min-height:100px;margin-bottom:16px;}
 .skip-wrap{display:flex;align-items:center;justify-content:center;gap:12px;}
@@ -108,6 +110,7 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 
   <div class="ad-overlay hide" id="adOverlay">
     <div class="ad-box">
+      <button class="ad-close" id="adClose" title="Tutup iklan">×</button>
       <p class="ad-label">Advertisement</p>
       <div class="ad-content" id="adContent">
         <!-- PASTE SCRIPT IKLAN DI SINI -->
@@ -157,7 +160,7 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 // ============================================================
 // KONFIGURASI
 // ============================================================
-var ADS_ENABLED        = false;
+var ADS_ENABLED        = true;
 var SKIP_AFTER_SECONDS = 5;
 var CDN_BASE_URL       = 'https://vidoway.click/file';
 // ============================================================
@@ -213,6 +216,13 @@ function showAd(){
     else{skipCount.textContent=sec+'d';}
   },1000);
 }
+
+// Tombol X tutup iklan
+document.getElementById('adClose').addEventListener('click',function(){
+  clearInterval(skipTimer);
+  adOverlay.classList.add('hide');
+  vid.play();
+});
 
 skipBtn.addEventListener('click',function(){
   clearInterval(skipTimer);
