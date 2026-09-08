@@ -1,4 +1,0 @@
-/file/*   /file/:splat  200
-/player   /player.html  200
-/         /index.html   200
-/*        /404.html     404
