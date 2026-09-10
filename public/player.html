@@ -34,18 +34,81 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 .btn:hover{opacity:1;transform:scale(1.1);}
 .btn svg{width:20px;height:20px;fill:#fff !important;filter:none !important;}
 
+/* ── Volume — YouTube style ── */
 .vol-wrap{display:flex;align-items:center;gap:8px;}
-.vol-slider-wrap{width:0;overflow:hidden;transition:width .25s ease;flex-shrink:0;display:flex;align-items:center;}
-.vol-wrap:hover .vol-slider-wrap,.vol-wrap:focus-within .vol-slider-wrap{width:80px;}
-.vol-slider{width:80px;height:4px;-webkit-appearance:none;appearance:none;border-radius:99px;outline:none;cursor:pointer;flex-shrink:0;}
-.vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#dc2626;cursor:pointer;box-shadow:0 0 4px rgba(220,38,38,0.6);margin-top:-5px;}
-.vol-slider::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:#dc2626;cursor:pointer;}
-.vol-slider::-webkit-slider-runnable-track{height:4px;border-radius:99px;}
+
+/* Container slider yang expand saat hover */
+.vol-slider-wrap{
+  width:0;height:16px;
+  overflow-x:hidden;overflow-y:visible;
+  transition:width .25s ease;
+  flex-shrink:0;
+  display:flex;align-items:center;
+}
+.vol-wrap:hover .vol-slider-wrap,
+.vol-wrap:focus-within .vol-slider-wrap{width:80px;}
+
+/* Slider sendiri selalu width penuh dalam container */
+.vol-slider{
+  width:80px;height:16px;
+  -webkit-appearance:none;appearance:none;
+  border-radius:99px;outline:none;cursor:pointer;
+  flex-shrink:0;
+  background:transparent;
+  box-shadow:none;
+}
+.vol-slider:focus{
+  outline:none;
+  box-shadow:none;
+}
+
+/* Thumb bulat merah seperti YouTube */
+.vol-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:8px;height:8px;
+  border-radius:50%;
+  background:#dc2626;
+  border:none;
+  outline:none;
+  box-shadow:none;
+  cursor:pointer;
+  margin-top:-2px;
+  transition:transform .15s;
+}
+.vol-slider:hover::-webkit-slider-thumb{
+  transform:scale(1.15);
+}
+.vol-slider::-moz-range-thumb{
+  width:8px;height:8px;
+  border:none;
+  outline:none;
+  box-shadow:none;
+  border-radius:50%;background:#dc2626;cursor:pointer;
+  transition:transform .15s;
+}
+.vol-slider:hover::-moz-range-thumb{
+  transform:scale(1.15);
+}
+.vol-slider::-moz-focus-outer{
+  border:0;
+}
+.vol-slider::-webkit-slider-runnable-track{
+  height:4px;border-radius:99px;
+}
+.vol-slider::-moz-range-track{
+  height:4px;border-radius:99px;
+  background:rgba(255,255,255,0.25);
+}
+.vol-slider::-moz-range-progress{
+  height:4px;border-radius:99px;
+  background:#dc2626;
+}
 
 .time{font-size:12px;color:rgba(255,255,255,0.85);letter-spacing:.3px;white-space:nowrap;flex-shrink:0;}
 .spacer{flex:1;}
 .fs-btn svg{width:18px;height:18px;}
 
+/* Ad overlay */
 .ad-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:20;backdrop-filter:blur(4px);}
 .ad-overlay.hide{display:none;}
 .ad-box{width:92%;max-width:500px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;text-align:center;color:#fff;backdrop-filter:blur(10px);position:relative;}
@@ -108,6 +171,7 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
             <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" fill="#fff"/>
           </svg>
         </button>
+        <!-- Wrapper expand saat hover -->
         <div class="vol-slider-wrap">
           <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.01" value="1"/>
         </div>
@@ -115,7 +179,7 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
       <span class="time" id="timeDisp">0:00 / 0:00</span>
       <div class="spacer"></div>
       <button class="btn fs-btn" id="fsBtn">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="fsIcon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" fill="#fff"/>
         </svg>
       </button>
@@ -144,15 +208,9 @@ var skipBtn   = document.getElementById('skipBtn');
 var skipCount = document.getElementById('skipCount');
 var muteBtn   = document.getElementById('muteBtn');
 var volIcon   = document.getElementById('volIcon');
-var fsBtn     = document.getElementById('fsBtn');
-var fsIcon    = document.getElementById('fsIcon');
 var adShown   = false;
 var skipTimer = null;
 var touchTimer= null;
-
-// Icon fullscreen dan exit fullscreen
-var ICON_FS   = '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" fill="#fff"/>';
-var ICON_EXIT = '<path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" fill="#fff"/>';
 
 var urlParams = new URLSearchParams(window.location.search);
 var videoFile = urlParams.get('v');
@@ -178,36 +236,6 @@ function updateVolIcon(val, muted){
   volIcon.innerHTML = path;
 }
 
-// ── Fullscreen toggle + update icon ──
-function isFullscreen(){
-  return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
-}
-
-function toggleFullscreen(e){
-  e.stopPropagation();
-  if(!isFullscreen()){
-    if(wrap.requestFullscreen) wrap.requestFullscreen();
-    else if(wrap.webkitRequestFullscreen) wrap.webkitRequestFullscreen();
-    else if(wrap.mozRequestFullScreen) wrap.mozRequestFullScreen();
-  } else {
-    if(document.exitFullscreen) document.exitFullscreen();
-    else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
-    else if(document.mozCancelFullScreen) document.mozCancelFullScreen();
-  }
-}
-
-// Update icon saat fullscreen berubah (termasuk saat tekan ESC)
-function onFullscreenChange(){
-  fsIcon.innerHTML = isFullscreen() ? ICON_EXIT : ICON_FS;
-}
-
-document.addEventListener('fullscreenchange', onFullscreenChange);
-document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-document.addEventListener('mozfullscreenchange', onFullscreenChange);
-
-fsBtn.addEventListener('click', toggleFullscreen);
-
-// ── Ad ──
 function showAd(){
   adOverlay.classList.remove('hide');
   var sec=SKIP_AFTER_SECONDS;
@@ -220,6 +248,7 @@ function showAd(){
   },1000);
 }
 
+// Tombol X tutup iklan
 document.getElementById('adClose').addEventListener('click',function(){
   clearInterval(skipTimer);
   adOverlay.classList.add('hide');
@@ -271,13 +300,7 @@ vid.addEventListener('timeupdate',function(){
     timeDisp.textContent=fmt(vid.currentTime)+' / '+fmt(vid.duration);
   }
 });
-vid.addEventListener('loadedmetadata',function(){
-  timeDisp.textContent='0:00 / '+fmt(vid.duration);
-  // Kirim ratio ke parent untuk auto-resize iframe
-  if(vid.videoWidth&&vid.videoHeight){
-    window.parent.postMessage({type:'vidoway-resize',ratio:vid.videoHeight/vid.videoWidth},'*');
-  }
-});
+vid.addEventListener('loadedmetadata',function(){timeDisp.textContent='0:00 / '+fmt(vid.duration);});
 vid.addEventListener('ended',function(){
   wrap.classList.add('paused');
   playIcon.innerHTML='<path d="M8 5v14l11-7z" fill="#fff"/>';
@@ -310,6 +333,18 @@ muteBtn.addEventListener('click',function(e){
   volSlider.value=v;
   updateVolGradient(v);
   updateVolIcon(vid.volume,vid.muted);
+});
+
+document.getElementById('fsBtn').addEventListener('click',function(e){
+  e.stopPropagation();
+  var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if(isFs){
+    if(document.exitFullscreen) document.exitFullscreen();
+    else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+  } else {
+    if(wrap.requestFullscreen) wrap.requestFullscreen();
+    else if(wrap.webkitRequestFullscreen) wrap.webkitRequestFullscreen();
+  }
 });
 </script>
 </body>
