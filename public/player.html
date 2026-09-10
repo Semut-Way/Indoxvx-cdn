@@ -34,74 +34,22 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 .btn:hover{opacity:1;transform:scale(1.1);}
 .btn svg{width:20px;height:20px;fill:#fff !important;filter:none !important;}
 
-/* ── Volume — YouTube style ── */
+/* ── Volume — YouTube style (div-based, konsisten di semua browser) ── */
 .vol-wrap{display:flex;align-items:center;gap:8px;}
 
-/* Container slider yang expand saat hover */
-.vol-slider-wrap{
-  width:0;height:16px;
-  overflow-x:hidden;overflow-y:visible;
-  transition:width .25s ease;
-  flex-shrink:0;
-  display:flex;align-items:center;
+.vol-track-wrap{
+  width:70px;padding:6px 0;cursor:pointer;flex-shrink:0;
 }
-.vol-wrap:hover .vol-slider-wrap,
-.vol-wrap:focus-within .vol-slider-wrap{width:80px;}
-
-/* Slider sendiri selalu width penuh dalam container */
-.vol-slider{
-  width:80px;height:16px;
-  -webkit-appearance:none;appearance:none;
-  border-radius:99px;outline:none;cursor:pointer;
-  flex-shrink:0;
-  background:transparent;
-  box-shadow:none;
+.vol-track{
+  height:4px;background:rgba(255,255,255,0.4);border-radius:99px;position:relative;
 }
-.vol-slider:focus{
-  outline:none;
-  box-shadow:none;
+.vol-fill{
+  height:100%;background:#dc2626;border-radius:99px;width:100%;position:relative;
 }
-
-/* Thumb bulat merah seperti YouTube */
-.vol-slider::-webkit-slider-thumb{
-  -webkit-appearance:none;
-  width:8px;height:8px;
-  border-radius:50%;
-  background:#dc2626;
-  border:none;
-  outline:none;
-  box-shadow:none;
-  cursor:pointer;
-  margin-top:-2px;
-  transition:transform .15s;
-}
-.vol-slider:hover::-webkit-slider-thumb{
-  transform:scale(1.15);
-}
-.vol-slider::-moz-range-thumb{
-  width:8px;height:8px;
-  border:none;
-  outline:none;
-  box-shadow:none;
-  border-radius:50%;background:#dc2626;cursor:pointer;
-  transition:transform .15s;
-}
-.vol-slider:hover::-moz-range-thumb{
-  transform:scale(1.15);
-}
-.vol-slider::-moz-focus-outer{
-  border:0;
-}
-.vol-slider::-webkit-slider-runnable-track{
-  height:4px;border-radius:99px;
-}
-.vol-slider::-moz-range-track{
-  height:4px;border-radius:99px;
-  background:rgba(255,255,255,0.25);
-}
-.vol-slider::-moz-range-progress{
-  height:4px;border-radius:99px;
-  background:#dc2626;
+.vol-fill::after{
+  content:'';position:absolute;right:-6px;top:50%;
+  transform:translateY(-50%);
+  width:12px;height:12px;border-radius:50%;background:#dc2626;
 }
 
 .time{font-size:12px;color:rgba(255,255,255,0.85);letter-spacing:.3px;white-space:nowrap;flex-shrink:0;}
@@ -171,9 +119,10 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
             <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" fill="#fff"/>
           </svg>
         </button>
-        <!-- Wrapper expand saat hover -->
-        <div class="vol-slider-wrap">
-          <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.01" value="1"/>
+        <div class="vol-track-wrap" id="volTrackWrap">
+          <div class="vol-track">
+            <div class="vol-fill" id="volFill"></div>
+          </div>
         </div>
       </div>
       <span class="time" id="timeDisp">0:00 / 0:00</span>
@@ -201,7 +150,8 @@ var wrap      = document.getElementById('wrap');
 var bar       = document.getElementById('bar');
 var prog      = document.getElementById('prog');
 var playIcon  = document.getElementById('playIcon');
-var volSlider = document.getElementById('volSlider');
+var volTrackWrap = document.getElementById('volTrackWrap');
+var volFill  = document.getElementById('volFill');
 var timeDisp  = document.getElementById('timeDisp');
 var adOverlay = document.getElementById('adOverlay');
 var skipBtn   = document.getElementById('skipBtn');
@@ -218,11 +168,14 @@ if(videoFile){ vid.src = CDN_BASE_URL+'/'+videoFile; vid.load(); }
 
 function fmt(s){ var m=Math.floor(s/60); return m+':'+(Math.floor(s%60)+'').padStart(2,'0'); }
 
-function updateVolGradient(val){
-  volSlider.style.background =
-    'linear-gradient(to right, #dc2626 '+Math.round(val*100)+'%, rgba(255,255,255,0.25) '+Math.round(val*100)+'%)';
+function applyVolume(v){
+  v = Math.max(0, Math.min(1, v));
+  vid.volume = v;
+  vid.muted = (v === 0);
+  volFill.style.width = (v * 100) + '%';
+  updateVolIcon(v, vid.muted);
 }
-updateVolGradient(1);
+applyVolume(1);
 
 function updateVolIcon(val, muted){
   var path = '';
@@ -319,20 +272,29 @@ document.addEventListener('mouseup',function(){dragging=false;});
 prog.addEventListener('touchstart',function(e){seekTo(e);},{passive:true});
 prog.addEventListener('touchmove',function(e){seekTo(e);e.preventDefault();},{passive:false});
 
-volSlider.addEventListener('input',function(){
-  var v=parseFloat(this.value);
-  vid.volume=v;vid.muted=(v===0);
-  updateVolGradient(v);
-  updateVolIcon(v,vid.muted);
-});
+var volDragging=false;
+function volSeek(e){
+  var r=volTrackWrap.getBoundingClientRect();
+  var x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+  applyVolume(x/r.width);
+}
+volTrackWrap.addEventListener('mousedown',function(e){e.stopPropagation();volDragging=true;volSeek(e);});
+document.addEventListener('mousemove',function(e){if(volDragging)volSeek(e);});
+document.addEventListener('mouseup',function(){volDragging=false;});
+volTrackWrap.addEventListener('touchstart',function(e){e.stopPropagation();volSeek(e);},{passive:true});
+volTrackWrap.addEventListener('touchmove',function(e){volSeek(e);e.preventDefault();},{passive:false});
 
 muteBtn.addEventListener('click',function(e){
   e.stopPropagation();
-  vid.muted=!vid.muted;
-  var v=vid.muted?0:vid.volume;
-  volSlider.value=v;
-  updateVolGradient(v);
-  updateVolIcon(vid.volume,vid.muted);
+  if(vid.muted || vid.volume===0){
+    vid.muted=false;
+    applyVolume(vid._lastVolume || 1);
+  } else {
+    vid._lastVolume = vid.volume;
+    vid.muted=true;
+    volFill.style.width='0%';
+    updateVolIcon(0,true);
+  }
 });
 
 document.getElementById('fsBtn').addEventListener('click',function(e){
