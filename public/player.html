@@ -12,7 +12,12 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 .player-wrap video{width:100%;display:block;max-height:100vh;background:#000;object-fit:contain;}
 
 .grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 35%,transparent 65%,rgba(0,0,0,0.3) 100%);opacity:0;transition:opacity .3s;pointer-events:none;}
-.player-wrap:hover .grad,.player-wrap.touched .grad{opacity:1;}
+.player-wrap.touched .grad,
+.player-wrap.show-controls .grad,
+.player-wrap.paused .grad{opacity:1;}
+@media (hover:hover) and (pointer:fine){
+  .player-wrap:hover .grad{opacity:1;}
+}
 
 .play-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;text-shadow:none !important;}
 .play-ring{width:76px;height:76px;border-radius:50%;background:rgba(220,38,38,0.88);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(220,38,38,0.4);transform:scale(0.85);opacity:0;transition:transform .2s,opacity .2s;}
@@ -20,7 +25,12 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 .player-wrap.paused .play-ring{transform:scale(1);opacity:1;}
 
 .controls{position:absolute;bottom:0;left:0;right:0;padding:0 16px 16px;opacity:0;transform:translateY(6px);transition:opacity .3s,transform .3s;pointer-events:none;}
-.player-wrap:hover .controls,.player-wrap.touched .controls{opacity:1;transform:translateY(0);pointer-events:all;}
+.player-wrap.touched .controls,
+.player-wrap.show-controls .controls,
+.player-wrap.paused .controls{opacity:1;transform:translateY(0);pointer-events:all;}
+@media (hover:hover) and (pointer:fine){
+  .player-wrap:hover .controls{opacity:1;transform:translateY(0);pointer-events:all;}
+}
 
 .prog-wrap{margin-bottom:10px;padding:6px 0;cursor:pointer;}
 .prog-track{height:4px;background:rgba(255,255,255,0.2);border-radius:99px;position:relative;transition:height .15s;}
@@ -177,12 +187,33 @@ var volIcon   = document.getElementById('volIcon');
 var adShown   = false;
 var skipTimer = null;
 var touchTimer= null;
+var controlsTimer = null;
+var CONTROLS_HIDE_DELAY = 3000;
 
 var urlParams = new URLSearchParams(window.location.search);
 var videoFile = urlParams.get('v');
 if(videoFile){ vid.src = CDN_BASE_URL+'/'+videoFile; vid.load(); }
 
 function fmt(s){ var m=Math.floor(s/60); return m+':'+(Math.floor(s%60)+'').padStart(2,'0'); }
+
+// ── Auto show/hide kontrol (JS-driven, aman untuk touch device) ──
+function showControls(){
+  wrap.classList.add('show-controls');
+  clearTimeout(controlsTimer);
+  if(!vid.paused){
+    controlsTimer=setTimeout(function(){
+      wrap.classList.remove('show-controls');
+    }, CONTROLS_HIDE_DELAY);
+  }
+}
+function keepControlsVisible(){
+  wrap.classList.add('show-controls');
+  clearTimeout(controlsTimer);
+}
+wrap.addEventListener('mousemove', showControls);
+wrap.addEventListener('mouseleave', function(){
+  if(!vid.paused) wrap.classList.remove('show-controls');
+});
 
 function applyVolume(v){
   v = Math.max(0, Math.min(1, v));
@@ -243,6 +274,7 @@ wrap.addEventListener('click',function(e){
 var lastTap=0;
 wrap.addEventListener('touchstart',function(e){
   if(e.target.closest('.controls')||e.target.closest('.ad-overlay'))return;
+  showControls();
   var now=Date.now();
   if(now-lastTap<300){tryPlay();lastTap=0;}
   else{
@@ -258,10 +290,12 @@ document.getElementById('playBtn').addEventListener('click',function(e){e.stopPr
 vid.addEventListener('play',function(){
   wrap.classList.remove('paused');
   playIcon.innerHTML='<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="#fff"/>';
+  showControls();
 });
 vid.addEventListener('pause',function(){
   wrap.classList.add('paused');
   playIcon.innerHTML='<path d="M8 5v14l11-7z" fill="#fff"/>';
+  keepControlsVisible();
 });
 vid.addEventListener('timeupdate',function(){
   if(vid.duration){
@@ -282,11 +316,11 @@ function seekTo(e){
   var x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
   if(vid.duration)vid.currentTime=Math.max(0,Math.min(1,x/r.width))*vid.duration;
 }
-prog.addEventListener('mousedown',function(e){dragging=true;seekTo(e);});
-document.addEventListener('mousemove',function(e){if(dragging)seekTo(e);});
-document.addEventListener('mouseup',function(){dragging=false;});
-prog.addEventListener('touchstart',function(e){seekTo(e);},{passive:true});
-prog.addEventListener('touchmove',function(e){seekTo(e);e.preventDefault();},{passive:false});
+prog.addEventListener('mousedown',function(e){dragging=true;keepControlsVisible();seekTo(e);});
+document.addEventListener('mousemove',function(e){if(dragging){keepControlsVisible();seekTo(e);}});
+document.addEventListener('mouseup',function(){if(dragging){dragging=false;showControls();}});
+prog.addEventListener('touchstart',function(e){keepControlsVisible();seekTo(e);},{passive:true});
+prog.addEventListener('touchmove',function(e){keepControlsVisible();seekTo(e);e.preventDefault();},{passive:false});
 
 var volDragging=false;
 function volSeek(e){
@@ -294,11 +328,11 @@ function volSeek(e){
   var x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
   applyVolume(x/r.width);
 }
-volTrackWrap.addEventListener('mousedown',function(e){e.stopPropagation();volDragging=true;volSeek(e);});
-document.addEventListener('mousemove',function(e){if(volDragging)volSeek(e);});
-document.addEventListener('mouseup',function(){volDragging=false;});
-volTrackWrap.addEventListener('touchstart',function(e){e.stopPropagation();volSeek(e);},{passive:true});
-volTrackWrap.addEventListener('touchmove',function(e){volSeek(e);e.preventDefault();},{passive:false});
+volTrackWrap.addEventListener('mousedown',function(e){e.stopPropagation();volDragging=true;keepControlsVisible();volSeek(e);});
+document.addEventListener('mousemove',function(e){if(volDragging){keepControlsVisible();volSeek(e);}});
+document.addEventListener('mouseup',function(){if(volDragging){volDragging=false;showControls();}});
+volTrackWrap.addEventListener('touchstart',function(e){e.stopPropagation();keepControlsVisible();volSeek(e);},{passive:true});
+volTrackWrap.addEventListener('touchmove',function(e){keepControlsVisible();volSeek(e);e.preventDefault();},{passive:false});
 
 muteBtn.addEventListener('click',function(e){
   e.stopPropagation();
