@@ -12,11 +12,11 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 .player-wrap video{width:100%;display:block;max-height:100vh;background:#000;object-fit:contain;}
 
 .grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 35%,transparent 65%,rgba(0,0,0,0.3) 100%);opacity:0;transition:opacity .3s;pointer-events:none;}
-.player-wrap.touched .grad,
-.player-wrap.show-controls .grad,
-.player-wrap.paused .grad{opacity:1;}
+.player-wrap.touched.started .grad,
+.player-wrap.show-controls.started .grad,
+.player-wrap.paused.started .grad{opacity:1;}
 @media (hover:hover) and (pointer:fine){
-  .player-wrap:hover .grad{opacity:1;}
+  .player-wrap.started:hover .grad{opacity:1;}
 }
 
 .play-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;text-shadow:none !important;}
@@ -25,11 +25,11 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 .player-wrap.paused .play-ring{transform:scale(1);opacity:1;}
 
 .controls{position:absolute;bottom:0;left:0;right:0;padding:0 16px 16px;opacity:0;transform:translateY(6px);transition:opacity .3s,transform .3s;pointer-events:none;}
-.player-wrap.touched .controls,
-.player-wrap.show-controls .controls,
-.player-wrap.paused .controls{opacity:1;transform:translateY(0);pointer-events:all;}
+.player-wrap.touched.started .controls,
+.player-wrap.show-controls.started .controls,
+.player-wrap.paused.started .controls{opacity:1;transform:translateY(0);pointer-events:all;}
 @media (hover:hover) and (pointer:fine){
-  .player-wrap:hover .controls{opacity:1;transform:translateY(0);pointer-events:all;}
+  .player-wrap.started:hover .controls{opacity:1;transform:translateY(0);pointer-events:all;}
 }
 
 .prog-wrap{margin-bottom:10px;padding:6px 0;cursor:pointer;}
@@ -289,6 +289,7 @@ document.getElementById('playBtn').addEventListener('click',function(e){e.stopPr
 
 vid.addEventListener('play',function(){
   wrap.classList.remove('paused');
+  wrap.classList.add('started');
   playIcon.innerHTML='<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="#fff"/>';
   showControls();
 });
