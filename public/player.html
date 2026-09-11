@@ -52,6 +52,22 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
   width:12px;height:12px;border-radius:50%;background:#dc2626;
 }
 
+/* Force-landscape fallback saat fullscreen di HP portrait, browser tidak
+   support Screen Orientation Lock (mis. iOS Safari) */
+.player-wrap.force-landscape{
+  position:fixed !important;
+  top:0 !important;left:0 !important;
+  width:100vh !important;
+  height:100vw !important;
+  transform-origin:top left;
+  transform:rotate(90deg) translateY(-100%);
+  max-width:none !important;
+  border-radius:0 !important;
+}
+.player-wrap.force-landscape video{
+  max-height:100vw;
+}
+
 .time{font-size:12px;color:rgba(255,255,255,0.85);letter-spacing:.3px;white-space:nowrap;flex-shrink:0;}
 .spacer{flex:1;}
 .fs-btn svg{width:18px;height:18px;}
@@ -307,6 +323,43 @@ document.getElementById('fsBtn').addEventListener('click',function(e){
     if(wrap.requestFullscreen) wrap.requestFullscreen();
     else if(wrap.webkitRequestFullscreen) wrap.webkitRequestFullscreen();
   }
+});
+
+// ── Auto-landscape saat fullscreen untuk video landscape ──
+function isVideoLandscape(){
+  return vid.videoWidth > 0 && vid.videoWidth >= vid.videoHeight;
+}
+function isScreenPortrait(){
+  return window.matchMedia('(orientation: portrait)').matches;
+}
+function applyForceLandscape(){
+  if(isVideoLandscape() && isScreenPortrait()){
+    wrap.classList.add('force-landscape');
+  } else {
+    wrap.classList.remove('force-landscape');
+  }
+}
+function onFsChange(){
+  var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if(isFs){
+    if(screen.orientation && screen.orientation.lock){
+      screen.orientation.lock('landscape').catch(function(){ /* not supported, fallback CSS handles it */ });
+    }
+    applyForceLandscape();
+  } else {
+    wrap.classList.remove('force-landscape');
+    if(screen.orientation && screen.orientation.unlock){
+      try{ screen.orientation.unlock(); }catch(err){}
+    }
+  }
+}
+document.addEventListener('fullscreenchange', onFsChange);
+document.addEventListener('webkitfullscreenchange', onFsChange);
+window.addEventListener('orientationchange', function(){
+  if(document.fullscreenElement || document.webkitFullscreenElement) applyForceLandscape();
+});
+window.addEventListener('resize', function(){
+  if(document.fullscreenElement || document.webkitFullscreenElement) applyForceLandscape();
 });
 </script>
 </body>
