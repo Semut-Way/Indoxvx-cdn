@@ -378,7 +378,8 @@ function onFsChange(){
   var isFs = document.fullscreenElement || document.webkitFullscreenElement;
   if(isFs){
     if(screen.orientation && screen.orientation.lock){
-      screen.orientation.lock('landscape').catch(function(){ /* not supported, fallback CSS handles it */ });
+      var targetOrientation = isVideoLandscape() ? 'landscape' : 'portrait';
+      screen.orientation.lock(targetOrientation).catch(function(){ /* not supported, fallback CSS handles it */ });
     }
     applyForceLandscape();
   } else {
