@@ -9,6 +9,14 @@
 body{background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
 
 .player-wrap{position:relative;width:100%;max-width:900px;background:#000;border-radius:12px;overflow:hidden;cursor:pointer;}
+.player-wrap:fullscreen,
+.player-wrap:-webkit-full-screen,
+.player-wrap:-moz-full-screen{
+  border-radius:0 !important;
+  max-width:none !important;
+  width:100% !important;
+  height:100% !important;
+}
 .player-wrap video{width:100%;display:block;max-height:100vh;background:#000;object-fit:contain;}
 
 .grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 35%,transparent 65%,rgba(0,0,0,0.3) 100%);opacity:0;transition:opacity .3s;pointer-events:none;}
