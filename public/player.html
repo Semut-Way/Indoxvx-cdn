@@ -33,6 +33,25 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
 .play-ring svg{width:30px;height:30px;fill:#fff !important;margin-left:5px;filter:none !important;}
 .player-wrap.paused .play-ring{transform:scale(1);opacity:1;}
 
+/* Loading spinner — modern minimalis, muncul saat video buffering */
+.loader{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.25);
+  opacity:0;pointer-events:none;
+  transition:opacity .25s ease;
+  z-index:15;
+}
+.loader.show{opacity:1;}
+.loader-spinner{
+  width:44px;height:44px;
+  border-radius:50%;
+  border:3px solid rgba(255,255,255,0.2);
+  border-top-color:#dc2626;
+  animation:loader-spin .8s linear infinite;
+}
+@keyframes loader-spin{to{transform:rotate(360deg);}}
+
 .controls{position:absolute;bottom:0;left:0;right:0;padding:0 16px 16px;opacity:0;transform:translateY(6px);transition:opacity .3s,transform .3s;pointer-events:none;}
 .player-wrap.touched.started .controls,
 .player-wrap.show-controls.started .controls,
@@ -98,6 +117,8 @@ body{background:#000;display:flex;align-items:center;justify-content:center;min-
       <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="#fff"/></svg>
     </div>
   </div>
+
+  <div class="loader" id="loader"><div class="loader-spinner"></div></div>
 
   <div class="ad-overlay hide" id="adOverlay">
     <div class="ad-box">
@@ -174,6 +195,7 @@ var skipCount    = document.getElementById('skipCount');
 var muteBtn      = document.getElementById('muteBtn');
 var volIcon      = document.getElementById('volIcon');
 var fsIcon       = document.getElementById('fsIcon');
+var loader       = document.getElementById('loader');
 var adShown      = false;
 var slFired      = false; // smartlink sudah fired untuk halaman ini
 var skipTimer    = null;
@@ -189,6 +211,16 @@ var videoFile = urlParams.get('v');
 if(videoFile){ vid.src = CDN_BASE_URL+'/'+videoFile; vid.load(); }
 
 function fmt(s){ var m=Math.floor(s/60); return m+':'+(Math.floor(s%60)+'').padStart(2,'0'); }
+
+// ── Loading spinner (buffering indicator) ──
+function showLoader(){ loader.classList.add('show'); }
+function hideLoader(){ loader.classList.remove('show'); }
+vid.addEventListener('waiting', showLoader);
+vid.addEventListener('playing', hideLoader);
+vid.addEventListener('canplay', hideLoader);
+vid.addEventListener('pause', hideLoader);
+vid.addEventListener('ended', hideLoader);
+vid.addEventListener('error', hideLoader);
 
 // ── Controls show/hide ──
 function showControls(){
@@ -231,7 +263,12 @@ function tryPlay(){
   }
   // Banner iklan
   if(ADS_ENABLED && !adShown){ adShown=true; showAd(); return; }
-  vid.paused ? vid.play() : vid.pause();
+  if(vid.paused){
+    showLoader();
+    vid.play();
+  } else {
+    vid.pause();
+  }
 }
 
 wrap.addEventListener('click',function(e){
