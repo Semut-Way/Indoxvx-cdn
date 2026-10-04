@@ -6,6 +6,7 @@
 const ALLOWED_DOMAINS = [
   'vidoway.click',
   'www.vidoway.click',
+  'vidoway.devs.surf',
   'indoxvx.cam',
   'www.indoxvx.cam',
   'xjilbab.cam',
